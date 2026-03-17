@@ -1,0 +1,3 @@
+[2026-03-15 15:18:53] [WARNING] DB file not found. Created new empty file.
+[2026-03-15 15:18:53] [INFO] Local API server started on 127.0.0.1:8080
+[2026-03-15 15:26:15] [INFO] Local API server stopped

@@ -1,0 +1,112 @@
+[2026-03-15 15:36:17] [WARNING] DB file not found. Created new empty file.
+[2026-03-15 15:36:17] [INFO] Local API server started on 127.0.0.1:8080
+[2026-03-15 15:42:51] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:42:51] [INFO] Saved records: 1
+[2026-03-15 15:43:08] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:43:08] [INFO] Saved records: 1
+[2026-03-15 15:43:13] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:43:13] [INFO] Saved records: 1
+[2026-03-15 15:43:13] [INFO] Search success: Футбол
+[2026-03-15 15:43:32] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:43:32] [INFO] Saved records: 1
+[2026-03-15 15:43:32] [INFO] Search success: Футбол
+[2026-03-15 15:46:08] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:46:08] [INFO] Saved records: 2
+[2026-03-15 15:46:22] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:46:22] [INFO] Saved records: 3
+[2026-03-15 15:46:34] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:46:34] [INFO] Saved records: 4
+[2026-03-15 15:46:50] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:46:50] [INFO] Saved records: 5
+[2026-03-15 15:46:56] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:46:56] [INFO] Saved records: 5
+[2026-03-15 15:47:17] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:47:17] [INFO] Saved records: 5
+[2026-03-15 15:47:17] [INFO] Search success: Теннис
+[2026-03-15 15:48:17] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:48:17] [INFO] Saved records: 5
+[2026-03-15 15:48:17] [INFO] Search success: Теннис
+[2026-03-15 15:49:09] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:49:09] [INFO] Saved records: 6
+[2026-03-15 15:49:12] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:49:12] [INFO] Saved records: 7
+[2026-03-15 15:49:13] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:49:13] [INFO] Saved records: 8
+[2026-03-15 15:49:15] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:49:15] [INFO] Saved records: 9
+[2026-03-15 15:49:18] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:49:18] [INFO] Saved records: 10
+[2026-03-15 15:49:20] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:49:20] [INFO] Saved records: 11
+[2026-03-15 15:49:33] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:49:33] [INFO] Saved records: 11
+[2026-03-15 15:50:29] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:50:29] [INFO] Saved records: 12
+[2026-03-15 15:50:30] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:50:30] [INFO] Saved records: 13
+[2026-03-15 15:50:35] [WARNING] Search rejected: data is not sorted by name
+[2026-03-15 15:50:47] [WARNING] Search rejected: data is not sorted by name
+[2026-03-15 15:50:48] [WARNING] Search rejected: data is not sorted by name
+[2026-03-15 15:50:50] [WARNING] Search rejected: data is not sorted by name
+[2026-03-15 15:50:52] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:50:52] [INFO] Saved records: 13
+[2026-03-15 15:51:00] [WARNING] Search rejected: data is not sorted by name
+[2026-03-15 15:51:06] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:06] [INFO] Saved records: 13
+[2026-03-15 15:51:09] [WARNING] Search rejected: data is not sorted by name
+[2026-03-15 15:51:10] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:10] [INFO] Saved records: 13
+[2026-03-15 15:51:14] [INFO] Search failed: name
+[2026-03-15 15:51:19] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:19] [INFO] Saved records: 13
+[2026-03-15 15:51:19] [INFO] Search success: Бокс
+[2026-03-15 15:51:25] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:25] [INFO] Saved records: 13
+[2026-03-15 15:51:25] [INFO] Search success: Бокс
+[2026-03-15 15:51:26] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:26] [INFO] Saved records: 13
+[2026-03-15 15:51:26] [INFO] Search success: Бокс
+[2026-03-15 15:51:26] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:26] [INFO] Saved records: 13
+[2026-03-15 15:51:26] [INFO] Search success: Бокс
+[2026-03-15 15:51:27] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:27] [INFO] Saved records: 13
+[2026-03-15 15:51:27] [INFO] Search success: Бокс
+[2026-03-15 15:51:27] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:27] [INFO] Saved records: 13
+[2026-03-15 15:51:27] [INFO] Search success: Бокс
+[2026-03-15 15:51:28] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:28] [INFO] Saved records: 13
+[2026-03-15 15:51:28] [INFO] Search success: Бокс
+[2026-03-15 15:51:28] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:28] [INFO] Saved records: 13
+[2026-03-15 15:51:28] [INFO] Search success: Бокс
+[2026-03-15 15:51:29] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:29] [INFO] Saved records: 13
+[2026-03-15 15:51:29] [INFO] Search success: Бокс
+[2026-03-15 15:51:29] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:29] [INFO] Saved records: 13
+[2026-03-15 15:51:29] [INFO] Search success: Бокс
+[2026-03-15 15:51:30] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:30] [INFO] Saved records: 13
+[2026-03-15 15:51:30] [INFO] Search success: Бокс
+[2026-03-15 15:51:30] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:30] [INFO] Saved records: 13
+[2026-03-15 15:51:30] [INFO] Search success: Бокс
+[2026-03-15 15:51:30] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 15:51:30] [INFO] Saved records: 13
+[2026-03-15 15:51:30] [INFO] Search success: Бокс
+[2026-03-15 16:11:19] [INFO] Loaded records: 13
+[2026-03-15 16:11:19] [INFO] Local API server started on 127.0.0.1:8080
+[2026-03-15 16:12:55] [WARNING] Duplicate sport_id rejected: 1
+[2026-03-15 16:12:56] [WARNING] Duplicate sport_id rejected: 1
+[2026-03-15 16:12:56] [WARNING] Duplicate sport_id rejected: 1
+[2026-03-15 16:12:58] [INFO] Local API server stopped
+[2026-03-15 16:13:03] [INFO] Loaded records: 13
+[2026-03-15 16:13:03] [INFO] Local API server started on 127.0.0.1:8080
+[2026-03-15 16:13:37] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-15 16:13:37] [INFO] Saved records: 13
+[2026-03-15 16:17:51] [INFO] Local API server stopped
+[2026-03-15 16:18:15] [INFO] Loaded records: 13
+[2026-03-15 16:18:15] [INFO] Local API server started on 127.0.0.1:8080
+[2026-03-15 16:19:55] [INFO] Local API server stopped
