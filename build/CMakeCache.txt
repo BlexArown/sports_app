@@ -335,6 +335,14 @@ FETCHCONTENT_SOURCE_DIR_IMPLOT:PATH=
 // for json
 FETCHCONTENT_SOURCE_DIR_JSON:PATH=
 
+//When not empty, overrides where to find pre-populated content
+// for pfd
+FETCHCONTENT_SOURCE_DIR_PFD:PATH=
+
+//When not empty, overrides where to find pre-populated content
+// for stb
+FETCHCONTENT_SOURCE_DIR_STB:PATH=
+
 //Enables UPDATE_DISCONNECTED behavior for all content population
 FETCHCONTENT_UPDATES_DISCONNECTED:BOOL=OFF
 
@@ -349,6 +357,12 @@ FETCHCONTENT_UPDATES_DISCONNECTED_IMPLOT:BOOL=OFF
 
 //Enables UPDATE_DISCONNECTED behavior just for population of json
 FETCHCONTENT_UPDATES_DISCONNECTED_JSON:BOOL=OFF
+
+//Enables UPDATE_DISCONNECTED behavior just for population of pfd
+FETCHCONTENT_UPDATES_DISCONNECTED_PFD:BOOL=OFF
+
+//Enables UPDATE_DISCONNECTED behavior just for population of stb
+FETCHCONTENT_UPDATES_DISCONNECTED_STB:BOOL=OFF
 
 //Git command line client
 GIT_EXECUTABLE:FILEPATH=/usr/bin/git
@@ -524,6 +538,15 @@ nlohmann_json_SOURCE_DIR:STATIC=/home/sports_app/build/_deps/json-src
 
 //Path to a library.
 pkgcfg_lib_GLFW_glfw:FILEPATH=/usr/lib/x86_64-linux-gnu/libglfw.so
+
+//Value Computed by CMake
+portable_file_dialogs_BINARY_DIR:STATIC=/home/sports_app/build/_deps/pfd-build
+
+//Value Computed by CMake
+portable_file_dialogs_IS_TOP_LEVEL:STATIC=OFF
+
+//Value Computed by CMake
+portable_file_dialogs_SOURCE_DIR:STATIC=/home/sports_app/build/_deps/pfd-src
 
 //Value Computed by CMake
 sports_app_BINARY_DIR:STATIC=/home/sports_app/build
@@ -741,7 +764,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=3
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=4
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP

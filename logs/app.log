@@ -110,3 +110,34 @@
 [2026-03-15 16:18:15] [INFO] Loaded records: 13
 [2026-03-15 16:18:15] [INFO] Local API server started on 127.0.0.1:8080
 [2026-03-15 16:19:55] [INFO] Local API server stopped
+[2026-03-24 21:18:48] [INFO] Loaded records from JSON: 20
+[2026-03-24 21:18:48] [INFO] Local API server started on 127.0.0.1:8080
+[2026-03-24 21:19:32] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-24 21:19:32] [INFO] Saved records to JSON: 20
+[2026-03-24 21:19:32] [INFO] Sorted by field: name
+[2026-03-24 21:19:45] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-24 21:19:45] [INFO] Saved records to JSON: 20
+[2026-03-24 21:19:45] [INFO] Binary search success: Баскетбол
+[2026-03-24 21:21:33] [INFO] Loaded records from JSON: 20
+[2026-03-24 21:21:33] [INFO] Local API server started on 127.0.0.1:8080
+[2026-03-24 21:22:11] [WARNING] Duplicate sport_id rejected: 20
+[2026-03-24 21:22:15] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-24 21:22:15] [INFO] Saved records to JSON: 21
+[2026-03-24 21:22:15] [INFO] Record added: sport_id=21
+[2026-03-24 21:22:27] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-24 21:22:27] [INFO] Saved records to JSON: 21
+[2026-03-24 21:22:27] [INFO] Sorted by field: sport_id
+[2026-03-24 21:22:37] [INFO] Record deleted: sport_id=21
+[2026-03-24 21:22:37] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-24 21:22:37] [INFO] Saved records to JSON: 20
+[2026-03-24 21:22:53] [WARNING] Search rejected: data is not sorted by name
+[2026-03-24 21:22:58] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-24 21:22:58] [INFO] Saved records to JSON: 20
+[2026-03-24 21:22:58] [INFO] Sorted by field: name
+[2026-03-24 21:23:00] [INFO] Backup created: data/sports_database_backup.dat
+[2026-03-24 21:23:00] [INFO] Saved records to JSON: 20
+[2026-03-24 21:23:00] [INFO] Binary search success: Велоспорт
+[2026-03-24 21:23:15] [INFO] Tree built for field: sport_id
+[2026-03-24 21:23:32] [INFO] Tree built for field: name
+[2026-03-24 21:23:40] [INFO] Tree search success. field=name, value=Футбол
+[2026-03-24 21:23:55] [INFO] Tree built for field: medical_contraindications

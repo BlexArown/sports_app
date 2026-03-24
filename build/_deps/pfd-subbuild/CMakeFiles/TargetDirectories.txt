@@ -1,0 +1,3 @@
+/home/sports_app/build/_deps/pfd-subbuild/CMakeFiles/pfd-populate.dir
+/home/sports_app/build/_deps/pfd-subbuild/CMakeFiles/edit_cache.dir
+/home/sports_app/build/_deps/pfd-subbuild/CMakeFiles/rebuild_cache.dir

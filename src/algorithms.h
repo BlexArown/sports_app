@@ -1,10 +1,9 @@
 #pragma once
 #include "models.h"
+
 #include <vector>
 #include <string>
-#include <functional>
 #include <algorithm>
-#include <memory>
 #include <nlohmann/json.hpp>
 
 inline bool lessByField(const Sport& a, const Sport& b, SortField field) {
@@ -30,7 +29,7 @@ inline void swapSports(Sport& a, Sport& b) {
 inline void quickSort(std::vector<Sport>& A, int L, int R, SortField field) {
     if (L >= R) return;
 
-    Sport x = A[L];
+    Sport x = A[(L + R) / 2];
     int i = L;
     int j = R;
 
@@ -51,7 +50,10 @@ inline void quickSort(std::vector<Sport>& A, int L, int R, SortField field) {
 
 inline int binarySearchVersion2ByName(const std::vector<Sport>& A, const std::string& X) {
     int n = static_cast<int>(A.size());
-    int L = 0, R = n - 1;
+    if (n == 0) return -1;
+
+    int L = 0;
+    int R = n - 1;
 
     while (L < R) {
         int m = (L + R) / 2;
@@ -62,31 +64,60 @@ inline int binarySearchVersion2ByName(const std::vector<Sport>& A, const std::st
         }
     }
 
-    if (n > 0 && A[R].name == X) return R;
+    if (A[R].name == X) return R;
     return -1;
 }
 
+inline std::string getFieldValueAsString(const Sport& s, SortField field) {
+    switch (field) {
+        case SortField::Id: return std::to_string(s.sport_id);
+        case SortField::Name: return s.name;
+        case SortField::Category: return s.category;
+        case SortField::OlympicStatus: return s.olympic_status ? "true" : "false";
+        case SortField::Description: return s.description;
+        case SortField::GoverningBody: return s.governing_body;
+        case SortField::ImagePath: return s.image_path;
+        case SortField::MedicalContraindications: return s.medical_contraindications;
+        default: return "";
+    }
+}
+
+inline std::string makeTreeUniqueKey(const Sport& s, SortField field) {
+    return getFieldValueAsString(s, field) + " | id=" + std::to_string(s.sport_id);
+}
+
 struct TreeNode {
-    std::string key;
+    std::string key;           // уникальный ключ для BST
+    std::string display_value; // значение поля без id
+    int sport_id = 0;
     int weight = 1;
     TreeNode* left = nullptr;
     TreeNode* right = nullptr;
 };
 
-inline TreeNode* addVertex(TreeNode* root, const std::string& key, int weight) {
+inline TreeNode* addVertex(TreeNode* root,
+                           const std::string& key,
+                           const std::string& display_value,
+                           int sport_id,
+                           int weight) {
     if (root == nullptr) {
-        root = new TreeNode{key, weight, nullptr, nullptr};
-    } else if (key < root->key) {
-        root->left = addVertex(root->left, key, weight);
-    } else if (key > root->key) {
-        root->right = addVertex(root->right, key, weight);
+        return new TreeNode{key, display_value, sport_id, weight, nullptr, nullptr};
     }
+
+    if (key < root->key) {
+        root->left = addVertex(root->left, key, display_value, sport_id, weight);
+    } else if (key > root->key) {
+        root->right = addVertex(root->right, key, display_value, sport_id, weight);
+    }
+
     return root;
 }
 
-inline TreeNode* buildTreeByWeightA1(const std::vector<Sport>& data) {
+inline TreeNode* buildTreeByWeightA1(const std::vector<Sport>& data, SortField field) {
     struct VRec {
         std::string key;
+        std::string display_value;
+        int sport_id;
         int weight;
         bool use = false;
     };
@@ -95,7 +126,13 @@ inline TreeNode* buildTreeByWeightA1(const std::vector<Sport>& data) {
     V.reserve(data.size());
 
     for (const auto& s : data) {
-        V.push_back({s.name, s.weight, false});
+        V.push_back({
+            makeTreeUniqueKey(s, field),
+            getFieldValueAsString(s, field),
+            s.sport_id,
+            s.weight,
+            false
+        });
     }
 
     TreeNode* root = nullptr;
@@ -113,7 +150,11 @@ inline TreeNode* buildTreeByWeightA1(const std::vector<Sport>& data) {
 
         if (index >= 0) {
             V[index].use = true;
-            root = addVertex(root, V[index].key, V[index].weight);
+            root = addVertex(root,
+                             V[index].key,
+                             V[index].display_value,
+                             V[index].sport_id,
+                             V[index].weight);
         }
     }
 
@@ -127,10 +168,24 @@ inline void destroyTree(TreeNode* root) {
     delete root;
 }
 
+inline TreeNode* findInTreeByDisplayValue(TreeNode* root, const std::string& value) {
+    if (!root) return nullptr;
+
+    TreeNode* leftFound = findInTreeByDisplayValue(root->left, value);
+    if (leftFound) return leftFound;
+
+    if (root->display_value == value) return root;
+
+    return findInTreeByDisplayValue(root->right, value);
+}
+
 inline nlohmann::json treeToJson(TreeNode* root) {
     if (!root) return nullptr;
+
     return {
         {"key", root->key},
+        {"display_value", root->display_value},
+        {"sport_id", root->sport_id},
         {"weight", root->weight},
         {"left", treeToJson(root->left)},
         {"right", treeToJson(root->right)}

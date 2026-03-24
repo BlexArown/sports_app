@@ -10,7 +10,8 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <unordered_map>
+#include <algorithm>
+#include <stdexcept>
 
 class LocalApiServer {
 public:
@@ -28,7 +29,10 @@ public:
             } catch (const std::exception& e) {
                 logger_.error(std::string("Unhandled HTTP exception: ") + e.what());
                 res.status = 500;
-                res.set_content(R"({"status":"error","message":"Internal server error"})", "application/json");
+                res.set_content(
+                    R"({"status":"error","message":"Internal server error"})",
+                    "application/json"
+                );
             }
         });
 
@@ -117,20 +121,17 @@ private:
 
             validate(s);
 
-	    for (const auto& item : data_) {
-    		if (item.sport_id == s.sport_id) {
-        	    res.status = 400;
-        	    res.set_content(
-            		R"({"status":"error","message":"Запись с таким sport_id уже существует"})",
-            		"application/json"
-        	    );
-        	    logger_.warning("Duplicate sport_id rejected: " + std::to_string(s.sport_id));
-        	    return;
-    		}
-	    }
-
-	    data_.push_back(s);
-	    storage_.saveAll(data_);
+            for (const auto& item : data_) {
+                if (item.sport_id == s.sport_id) {
+                    res.status = 400;
+                    res.set_content(
+                        R"({"status":"error","message":"Запись с таким sport_id уже существует"})",
+                        "application/json"
+                    );
+                    logger_.warning("Duplicate sport_id rejected: " + std::to_string(s.sport_id));
+                    return;
+                }
+            }
 
             data_.push_back(s);
             storage_.saveAll(data_);
@@ -138,9 +139,56 @@ private:
             isSorted_ = false;
             currentSortField_ = SortField::None;
 
+            logger_.info("Record added: sport_id=" + std::to_string(s.sport_id));
+
             json response = {
                 {"status", "success"},
-                {"message", "Record added"}
+                {"message", "Record added"},
+                {"record", toJson(s)}
+            };
+
+            res.set_content(response.dump(2), "application/json");
+        });
+
+        server_.Post("/api/sports/delete", [this](const httplib::Request& req, httplib::Response& res) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            using json = nlohmann::json;
+
+            if (!req.has_param("id")) {
+                res.status = 400;
+                res.set_content(
+                    R"({"status":"error","message":"Missing 'id' query parameter"})",
+                    "application/json"
+                );
+                return;
+            }
+
+            int id = std::stoi(req.get_param_value("id"));
+
+            auto it = std::find_if(data_.begin(), data_.end(), [id](const Sport& s) {
+                return s.sport_id == id;
+            });
+
+            if (it == data_.end()) {
+                res.status = 404;
+                res.set_content(
+                    R"({"status":"error","message":"Record not found"})",
+                    "application/json"
+                );
+                logger_.warning("Delete failed: sport_id not found = " + std::to_string(id));
+                return;
+            }
+
+            logger_.info("Record deleted: sport_id=" + std::to_string(id));
+            data_.erase(it);
+            storage_.saveAll(data_);
+
+            isSorted_ = false;
+            currentSortField_ = SortField::None;
+
+            json response = {
+                {"status", "success"},
+                {"message", "Record deleted"}
             };
 
             res.set_content(response.dump(2), "application/json");
@@ -156,7 +204,10 @@ private:
             SortField field = sortFieldFromString(fieldStr);
             if (field == SortField::None) {
                 res.status = 400;
-                res.set_content(R"({"status":"error","message":"Unknown sort field"})", "application/json");
+                res.set_content(
+                    R"({"status":"error","message":"Unknown sort field"})",
+                    "application/json"
+                );
                 return;
             }
 
@@ -167,6 +218,8 @@ private:
             currentSortField_ = field;
             isSorted_ = true;
             storage_.saveAll(data_);
+
+            logger_.info("Sorted by field: " + fieldStr);
 
             json response = {
                 {"status", "success"},
@@ -193,7 +246,10 @@ private:
 
             if (!req.has_param("name")) {
                 res.status = 400;
-                res.set_content(R"({"status":"error","message":"Missing 'name' query parameter"})", "application/json");
+                res.set_content(
+                    R"({"status":"error","message":"Missing 'name' query parameter"})",
+                    "application/json"
+                );
                 return;
             }
 
@@ -202,12 +258,15 @@ private:
 
             if (idx == -1) {
                 res.status = 404;
-                res.set_content(R"({"status":"error","message":"Record not found"})", "application/json");
-                logger_.info("Search failed: " + name);
+                res.set_content(
+                    R"({"status":"error","message":"Record not found"})",
+                    "application/json"
+                );
+                logger_.info("Binary search failed: " + name);
                 return;
             }
 
-            data_[idx].weight += 1; // накапливаем вес по обращениям
+            data_[idx].weight += 1;
             storage_.saveAll(data_);
 
             json response = {
@@ -215,27 +274,107 @@ private:
                 {"record", toJson(data_[idx])}
             };
 
+            logger_.info("Binary search success: " + name);
             res.set_content(response.dump(2), "application/json");
-            logger_.info("Search success: " + name);
         });
 
-        server_.Get("/api/sports/tree", [this](const httplib::Request&, httplib::Response& res) {
+        server_.Get("/api/sports/tree", [this](const httplib::Request& req, httplib::Response& res) {
             std::lock_guard<std::mutex> lock(mtx_);
             using json = nlohmann::json;
 
-            std::vector<Sport> copy = data_;
-            if (!copy.empty()) {
-                quickSort(copy, 0, static_cast<int>(copy.size()) - 1, SortField::Name);
+            std::string fieldStr = "name";
+            if (req.has_param("field")) fieldStr = req.get_param_value("field");
+
+            SortField field = sortFieldFromString(fieldStr);
+            if (field == SortField::None) {
+                res.status = 400;
+                res.set_content(
+                    R"({"status":"error","message":"Unknown field"})",
+                    "application/json"
+                );
+                return;
             }
 
-            TreeNode* root = buildTreeByWeightA1(copy);
+            TreeNode* root = buildTreeByWeightA1(data_, field);
+
             json response = {
                 {"status", "success"},
+                {"field", fieldStr},
                 {"tree", treeToJson(root)}
             };
 
             destroyTree(root);
             res.set_content(response.dump(2), "application/json");
+            logger_.info("Tree built for field: " + fieldStr);
+        });
+
+        server_.Get("/api/sports/tree/search", [this](const httplib::Request& req, httplib::Response& res) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            using json = nlohmann::json;
+
+            if (!req.has_param("field") || !req.has_param("value")) {
+                res.status = 400;
+                res.set_content(
+                    R"({"status":"error","message":"Missing 'field' or 'value' query parameter"})",
+                    "application/json"
+                );
+                return;
+            }
+
+            std::string fieldStr = req.get_param_value("field");
+            std::string value = req.get_param_value("value");
+
+            SortField field = sortFieldFromString(fieldStr);
+            if (field == SortField::None) {
+                res.status = 400;
+                res.set_content(
+                    R"({"status":"error","message":"Unknown field"})",
+                    "application/json"
+                );
+                return;
+            }
+
+            TreeNode* root = buildTreeByWeightA1(data_, field);
+            TreeNode* found = findInTreeByDisplayValue(root, value);
+
+            if (!found) {
+                destroyTree(root);
+                res.status = 404;
+                res.set_content(
+                    R"({"status":"error","message":"Value not found in tree"})",
+                    "application/json"
+                );
+                logger_.info("Tree search failed. field=" + fieldStr + ", value=" + value);
+                return;
+            }
+
+            auto it = std::find_if(data_.begin(), data_.end(), [found](const Sport& s) {
+                return s.sport_id == found->sport_id;
+            });
+
+            json response;
+            if (it != data_.end()) {
+                response = {
+                    {"status", "success"},
+                    {"field", fieldStr},
+                    {"found_key", found->key},
+                    {"display_value", found->display_value},
+                    {"weight", found->weight},
+                    {"record", toJson(*it)}
+                };
+            } else {
+                response = {
+                    {"status", "success"},
+                    {"field", fieldStr},
+                    {"found_key", found->key},
+                    {"display_value", found->display_value},
+                    {"weight", found->weight}
+                };
+            }
+
+            destroyTree(root);
+            res.set_content(response.dump(2), "application/json");
+            logger_.info("Tree search success. field=" + fieldStr + ", value=" + value);
         });
     }
 

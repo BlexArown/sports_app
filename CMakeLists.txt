@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
+
 find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW REQUIRED glfw3)
@@ -37,7 +38,21 @@ FetchContent_Declare(
     GIT_TAG master
 )
 
-FetchContent_MakeAvailable(imgui implot httplib json)
+# portable-file-dialogs
+FetchContent_Declare(
+    pfd
+    GIT_REPOSITORY https://github.com/samhocevar/portable-file-dialogs.git
+    GIT_TAG main
+)
+
+# stb
+FetchContent_Declare(
+    stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG master
+)
+
+FetchContent_MakeAvailable(imgui implot httplib json pfd stb)
 
 add_library(imgui_lib
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -80,6 +95,11 @@ target_include_directories(sports_app PRIVATE
     src
     ${httplib_SOURCE_DIR}
     ${json_SOURCE_DIR}/single_include
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+    ${implot_SOURCE_DIR}
+    ${pfd_SOURCE_DIR}
+    ${stb_SOURCE_DIR}
     ${GLFW_INCLUDE_DIRS}
 )
 

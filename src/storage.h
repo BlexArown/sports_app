@@ -6,7 +6,7 @@
 #include <fstream>
 #include <filesystem>
 #include <stdexcept>
-#include <cstdint>
+#include <nlohmann/json.hpp>
 
 class Storage {
 public:
@@ -21,56 +21,76 @@ public:
         std::vector<Sport> result;
 
         if (!std::filesystem::exists(dbPath_)) {
-            std::ofstream create(dbPath_, std::ios::binary);
-            logger_.warning("DB file not found. Created new empty file.");
+            createEmptyJsonFile(dbPath_);
+            logger_.warning("DB file not found. Created new empty JSON file.");
             return result;
         }
 
-        std::ifstream in(dbPath_, std::ios::binary);
+        std::ifstream in(dbPath_);
         if (!in) {
             logger_.error("Failed to open DB file for reading.");
             throw std::runtime_error("Ошибка чтения файла БД");
         }
 
-        while (in.peek() != EOF) {
+        nlohmann::json root;
+        try {
+            in >> root;
+        } catch (const std::exception& e) {
+            logger_.error(std::string("JSON parse error: ") + e.what());
+            throw std::runtime_error("Файл БД поврежден или имеет неверный JSON-формат");
+        }
+
+        if (!root.is_array()) {
+            logger_.error("DB JSON root is not an array.");
+            throw std::runtime_error("Некорректная структура JSON-файла БД");
+        }
+
+        for (const auto& item : root) {
             Sport s;
-            if (!readInt32(in, s.sport_id)) break;
-            if (!readString(in, s.name)) break;
-            if (!readString(in, s.category)) break;
-            if (!readBool(in, s.olympic_status)) break;
-            if (!readString(in, s.description)) break;
-            if (!readString(in, s.governing_body)) break;
-            if (!readString(in, s.image_path)) break;
-            if (!readString(in, s.medical_contraindications)) break;
-            s.weight = 1;
+            s.sport_id = item.value("sport_id", 0);
+            s.name = item.value("name", "");
+            s.category = item.value("category", "");
+            s.olympic_status = item.value("olympic_status", false);
+            s.description = item.value("description", "");
+            s.governing_body = item.value("governing_body", "");
+            s.image_path = item.value("image_path", "");
+            s.medical_contraindications = item.value("medical_contraindications", "");
+            s.weight = item.value("weight", 1); // если поля нет — будет 1
+
             result.push_back(s);
         }
 
-        logger_.info("Loaded records: " + std::to_string(result.size()));
+        logger_.info("Loaded records from JSON: " + std::to_string(result.size()));
         return result;
     }
 
     void saveAll(const std::vector<Sport>& data) {
         createBackup();
 
-        std::ofstream out(dbPath_, std::ios::binary | std::ios::trunc);
+        nlohmann::json root = nlohmann::json::array();
+
+        for (const auto& s : data) {
+            root.push_back({
+                {"sport_id", s.sport_id},
+                {"name", s.name},
+                {"category", s.category},
+                {"olympic_status", s.olympic_status},
+                {"description", s.description},
+                {"governing_body", s.governing_body},
+                {"image_path", s.image_path},
+                {"medical_contraindications", s.medical_contraindications},
+                {"weight", s.weight}
+            });
+        }
+
+        std::ofstream out(dbPath_, std::ios::trunc);
         if (!out) {
             logger_.error("Failed to open DB file for writing.");
             throw std::runtime_error("Ошибка записи файла БД");
         }
 
-        for (const auto& s : data) {
-            writeInt32(out, s.sport_id);
-            writeString(out, s.name);
-            writeString(out, s.category);
-            writeBool(out, s.olympic_status);
-            writeString(out, s.description);
-            writeString(out, s.governing_body);
-            writeString(out, s.image_path);
-            writeString(out, s.medical_contraindications);
-        }
-
-        logger_.info("Saved records: " + std::to_string(data.size()));
+        out << root.dump(2);
+        logger_.info("Saved records to JSON: " + std::to_string(data.size()));
     }
 
 private:
@@ -89,39 +109,11 @@ private:
         }
     }
 
-    static void writeInt32(std::ofstream& out, int32_t value) {
-        out.write(reinterpret_cast<const char*>(&value), sizeof(value));
-    }
-
-    static bool readInt32(std::ifstream& in, int32_t& value) {
-        return static_cast<bool>(in.read(reinterpret_cast<char*>(&value), sizeof(value)));
-    }
-
-    static void writeBool(std::ofstream& out, bool value) {
-        uint8_t b = value ? 1 : 0;
-        out.write(reinterpret_cast<const char*>(&b), sizeof(b));
-    }
-
-    static bool readBool(std::ifstream& in, bool& value) {
-        uint8_t b{};
-        if (!in.read(reinterpret_cast<char*>(&b), sizeof(b))) return false;
-        value = (b != 0);
-        return true;
-    }
-
-    static void writeString(std::ofstream& out, const std::string& str) {
-        if (str.size() > 65535) {
-            throw std::runtime_error("Строка слишком длинная для формата uint16_t");
+    static void createEmptyJsonFile(const std::string& path) {
+        std::ofstream out(path, std::ios::trunc);
+        if (!out) {
+            throw std::runtime_error("Не удалось создать новый JSON-файл БД");
         }
-        uint16_t len = static_cast<uint16_t>(str.size());
-        out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-        out.write(str.data(), len);
-    }
-
-    static bool readString(std::ifstream& in, std::string& str) {
-        uint16_t len{};
-        if (!in.read(reinterpret_cast<char*>(&len), sizeof(len))) return false;
-        str.resize(len);
-        return static_cast<bool>(in.read(str.data(), len));
+        out << "[]";
     }
 };

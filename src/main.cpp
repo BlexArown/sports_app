@@ -6,6 +6,11 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+#include "portable-file-dialogs.h"
+
 #include "imgui.h"
 #include "implot.h"
 #include "backends/imgui_impl_glfw.h"
@@ -13,11 +18,31 @@
 
 #include <GLFW/glfw3.h>
 
-#include <thread>
-#include <string>
-#include <vector>
 #include <filesystem>
 #include <iostream>
+#include <vector>
+#include <string>
+#include <array>
+#include <unordered_map>
+#include <sstream>
+#include <iomanip>
+#include <cstring>
+#include <cstdlib>
+#include <algorithm>
+
+struct TextureData {
+    GLuint id = 0;
+    int width = 0;
+    int height = 0;
+};
+
+struct TreeTabState {
+    nlohmann::json tree;
+    char searchValue[256] = "";
+    std::string status;
+    nlohmann::json foundRecord;
+    bool hasFoundRecord = false;
+};
 
 struct UiState {
     int page = 1;
@@ -25,7 +50,6 @@ struct UiState {
     int total = 0;
 
     std::vector<nlohmann::json> records;
-    nlohmann::json tree;
 
     char searchName[256] = "";
     char sortField[64] = "name";
@@ -36,22 +60,226 @@ struct UiState {
     bool olympic = false;
     char description[512] = "";
     char governingBody[256] = "";
-    char imagePath[256] = "";
+    char imagePath[512] = "";
     char contraindications[512] = "";
 
+    std::string selectedImageSourcePath;
     std::string status;
+
+    nlohmann::json binarySearchRecord;
+    bool hasBinarySearchRecord = false;
+
+    TreeTabState treeTabs[8];
 };
+
+static std::unordered_map<std::string, TextureData> g_textureCache;
+
+static const std::array<SortField, 8> g_treeFields = {
+    SortField::Id,
+    SortField::Name,
+    SortField::Category,
+    SortField::OlympicStatus,
+    SortField::Description,
+    SortField::GoverningBody,
+    SortField::ImagePath,
+    SortField::MedicalContraindications
+};
+
+static const std::array<const char*, 8> g_treeLabels = {
+    "sport_id",
+    "name",
+    "category",
+    "olympic_status",
+    "description",
+    "governing_body",
+    "image_path",
+    "medical_contraindications"
+};
+
+static int fieldToIndex(SortField field) {
+    switch (field) {
+        case SortField::Id: return 0;
+        case SortField::Name: return 1;
+        case SortField::Category: return 2;
+        case SortField::OlympicStatus: return 3;
+        case SortField::Description: return 4;
+        case SortField::GoverningBody: return 5;
+        case SortField::ImagePath: return 6;
+        case SortField::MedicalContraindications: return 7;
+        default: return -1;
+    }
+}
+
+static std::string urlEncode(const std::string& s) {
+    std::ostringstream encoded;
+    encoded.fill('0');
+    encoded << std::hex << std::uppercase;
+
+    for (unsigned char c : s) {
+        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            encoded << c;
+        } else {
+            encoded << '%' << std::setw(2) << int(c);
+        }
+    }
+
+    return encoded.str();
+}
+
+static bool loadTextureFromFile(const std::string& path, TextureData& outTexture) {
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
+    if (!data) {
+        return false;
+    }
+
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_RGBA,
+                 width,
+                 height,
+                 0,
+                 GL_RGBA,
+                 GL_UNSIGNED_BYTE,
+                 data);
+
+    stbi_image_free(data);
+
+    outTexture.id = texture;
+    outTexture.width = width;
+    outTexture.height = height;
+    return true;
+}
+
+static TextureData* getTexture(const std::string& path) {
+    if (path.empty()) return nullptr;
+    if (!std::filesystem::exists(path)) return nullptr;
+
+    auto it = g_textureCache.find(path);
+    if (it != g_textureCache.end()) {
+        return &it->second;
+    }
+
+    TextureData tex;
+    if (!loadTextureFromFile(path, tex)) {
+        return nullptr;
+    }
+
+    g_textureCache[path] = tex;
+    return &g_textureCache[path];
+}
+
+static void destroyAllTextures() {
+    for (auto& item : g_textureCache) {
+        if (item.second.id != 0) {
+            glDeleteTextures(1, &item.second.id);
+        }
+    }
+    g_textureCache.clear();
+}
+
+static void drawImagePreview(const std::string& path, float maxWidth = 220.0f, float maxHeight = 160.0f) {
+    if (path.empty()) {
+        ImGui::TextUnformatted("Изображение не указано");
+        return;
+    }
+
+    if (!std::filesystem::exists(path)) {
+        ImGui::TextWrapped("Файл изображения не найден: %s", path.c_str());
+        ImGui::TextUnformatted("Показывается заглушка");
+        return;
+    }
+
+    TextureData* tex = getTexture(path);
+    if (!tex) {
+        ImGui::TextWrapped("Не удалось загрузить изображение: %s", path.c_str());
+        return;
+    }
+
+    float w = static_cast<float>(tex->width);
+    float h = static_cast<float>(tex->height);
+
+    float scale = std::min(maxWidth / w, maxHeight / h);
+    if (scale > 1.0f) scale = 1.0f;
+
+    ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(tex->id)), ImVec2(w * scale, h * scale));
+}
+
+static void clearAddForm(UiState& ui) {
+    std::memset(ui.sportId, 0, sizeof(ui.sportId));
+    std::memset(ui.name, 0, sizeof(ui.name));
+    std::memset(ui.category, 0, sizeof(ui.category));
+    ui.olympic = false;
+    std::memset(ui.description, 0, sizeof(ui.description));
+    std::memset(ui.governingBody, 0, sizeof(ui.governingBody));
+    std::memset(ui.imagePath, 0, sizeof(ui.imagePath));
+    std::memset(ui.contraindications, 0, sizeof(ui.contraindications));
+    ui.selectedImageSourcePath.clear();
+}
+
+static std::string copyImageToAssets(const std::string& sourcePath, int sportId) {
+    namespace fs = std::filesystem;
+
+    if (sourcePath.empty()) return "";
+    if (!fs::exists(sourcePath)) return "";
+
+    fs::create_directories("assets/images");
+
+    fs::path src(sourcePath);
+    std::string ext = src.extension().string();
+    if (ext.empty()) ext = ".png";
+
+    std::string targetName = "sport_" + std::to_string(sportId) + ext;
+    fs::path dst = fs::path("assets/images") / targetName;
+
+    fs::copy_file(src, dst, fs::copy_options::overwrite_existing);
+    return dst.string();
+}
+
+static void chooseImage(UiState& ui) {
+    auto selection = pfd::open_file(
+        "Выбор изображения",
+        ".",
+        { "Image Files", "*.png *.jpg *.jpeg *.bmp *.tga" },
+        pfd::opt::none
+    ).result();
+
+    if (!selection.empty()) {
+        ui.selectedImageSourcePath = selection[0];
+        std::snprintf(ui.imagePath, sizeof(ui.imagePath), "%s", ui.selectedImageSourcePath.c_str());
+        ui.status = "Файл изображения выбран";
+    }
+}
 
 static bool fetchPage(UiState& ui) {
     httplib::Client cli("127.0.0.1", 8080);
+
     auto res = cli.Get(("/api/sports?page=" + std::to_string(ui.page) +
                         "&limit=" + std::to_string(ui.limit)).c_str());
+
     if (!res) {
         ui.status = "Не удалось подключиться к локальному API";
         return false;
     }
 
+    if (res->status != 200) {
+        ui.status = res->body;
+        return false;
+    }
+
     auto json = nlohmann::json::parse(res->body);
+
     if (json["status"] != "success") {
         ui.status = "Ошибка ответа API";
         return false;
@@ -59,8 +287,14 @@ static bool fetchPage(UiState& ui) {
 
     ui.total = json["data"]["total"].get<int>();
     ui.records.clear();
+
     for (auto& rec : json["data"]["records"]) {
         ui.records.push_back(rec);
+    }
+
+    int maxPage = std::max(1, (ui.total + ui.limit - 1) / ui.limit);
+    if (ui.page > maxPage) {
+        ui.page = maxPage;
     }
 
     ui.status = "Данные обновлены";
@@ -69,7 +303,12 @@ static bool fetchPage(UiState& ui) {
 
 static void doSort(UiState& ui) {
     httplib::Client cli("127.0.0.1", 8080);
-    auto res = cli.Post(("/api/sports/sort?field=" + std::string(ui.sortField)).c_str(), "", "application/json");
+
+    auto res = cli.Post(
+        ("/api/sports/sort?field=" + std::string(ui.sortField)).c_str(),
+        "",
+        "application/json"
+    );
 
     if (!res) {
         ui.status = "Ошибка сортировки: нет ответа от API";
@@ -80,48 +319,131 @@ static void doSort(UiState& ui) {
     fetchPage(ui);
 }
 
-static void doSearch(UiState& ui) {
+static void doBinarySearch(UiState& ui) {
     httplib::Client cli("127.0.0.1", 8080);
-    auto res = cli.Get(("/api/sports/search?name=" + std::string(ui.searchName)).c_str());
+
+    std::string encodedName = urlEncode(std::string(ui.searchName));
+    auto res = cli.Get(("/api/sports/search?name=" + encodedName).c_str());
 
     if (!res) {
         ui.status = "Ошибка поиска: нет ответа от API";
+        ui.hasBinarySearchRecord = false;
         return;
     }
 
     if (res->status != 200) {
         ui.status = res->body;
-        return;
-    }
-
-    ui.status = res->body;
-}
-
-static void buildTree(UiState& ui) {
-    httplib::Client cli("127.0.0.1", 8080);
-    auto res = cli.Get("/api/sports/tree");
-
-    if (!res) {
-        ui.status = "Ошибка построения дерева";
+        ui.hasBinarySearchRecord = false;
         return;
     }
 
     auto json = nlohmann::json::parse(res->body);
-    ui.tree = json["tree"];
-    ui.status = "Дерево построено";
+    ui.binarySearchRecord = json["record"];
+    ui.hasBinarySearchRecord = true;
+    ui.status = "Запись найдена бинарным поиском";
+}
+
+static void buildTreeForField(UiState& ui, SortField field) {
+    int idx = fieldToIndex(field);
+    if (idx < 0) return;
+
+    httplib::Client cli("127.0.0.1", 8080);
+    std::string fieldStr = sortFieldToString(field);
+
+    auto res = cli.Get(("/api/sports/tree?field=" + fieldStr).c_str());
+
+    if (!res) {
+        ui.treeTabs[idx].status = "Ошибка построения дерева";
+        return;
+    }
+
+    if (res->status != 200) {
+        ui.treeTabs[idx].status = res->body;
+        return;
+    }
+
+    auto json = nlohmann::json::parse(res->body);
+    ui.treeTabs[idx].tree = json["tree"];
+    ui.treeTabs[idx].status = "Дерево построено";
+}
+
+static void searchInTree(UiState& ui, SortField field) {
+    int idx = fieldToIndex(field);
+    if (idx < 0) return;
+
+    httplib::Client cli("127.0.0.1", 8080);
+    std::string fieldStr = sortFieldToString(field);
+    std::string value = ui.treeTabs[idx].searchValue;
+    std::string encodedValue = urlEncode(value);
+
+    auto res = cli.Get(("/api/sports/tree/search?field=" + fieldStr + "&value=" + encodedValue).c_str());
+
+    if (!res) {
+        ui.treeTabs[idx].status = "Ошибка поиска в дереве";
+        ui.treeTabs[idx].hasFoundRecord = false;
+        return;
+    }
+
+    if (res->status != 200) {
+        ui.treeTabs[idx].status = res->body;
+        ui.treeTabs[idx].hasFoundRecord = false;
+        return;
+    }
+
+    auto json = nlohmann::json::parse(res->body);
+    ui.treeTabs[idx].status = "Значение найдено в дереве";
+    if (json.contains("record")) {
+        ui.treeTabs[idx].foundRecord = json["record"];
+        ui.treeTabs[idx].hasFoundRecord = true;
+    } else {
+        ui.treeTabs[idx].hasFoundRecord = false;
+    }
+}
+
+static void deleteRecord(UiState& ui, int id) {
+    httplib::Client cli("127.0.0.1", 8080);
+
+    auto res = cli.Post(
+        ("/api/sports/delete?id=" + std::to_string(id)).c_str(),
+        "",
+        "application/json"
+    );
+
+    if (!res) {
+        ui.status = "Ошибка удаления записи";
+        return;
+    }
+
+    ui.status = res->body;
+
+    int maxPageBefore = std::max(1, (ui.total + ui.limit - 1) / ui.limit);
+    if (ui.page > maxPageBefore) ui.page = maxPageBefore;
+
+    fetchPage(ui);
 }
 
 static void addRecord(UiState& ui) {
     httplib::Client cli("127.0.0.1", 8080);
 
+    int id = std::atoi(ui.sportId);
+    std::string finalImagePath;
+
+    if (!ui.selectedImageSourcePath.empty()) {
+        finalImagePath = copyImageToAssets(ui.selectedImageSourcePath, id);
+    }
+
+    if (finalImagePath.empty()) {
+        finalImagePath = std::string(ui.imagePath);
+    }
+
     nlohmann::json body = {
-        {"sport_id", std::atoi(ui.sportId)},
+        {"sport_id", id},
         {"name", std::string(ui.name)},
         {"category", std::string(ui.category)},
         {"olympic_status", ui.olympic},
         {"description", std::string(ui.description)},
         {"governing_body", std::string(ui.governingBody)},
-        {"image_path", std::string(ui.imagePath)},
+        {"image_path", finalImagePath},
         {"medical_contraindications", std::string(ui.contraindications)}
     };
 
@@ -133,25 +455,67 @@ static void addRecord(UiState& ui) {
     }
 
     ui.status = res->body;
-    fetchPage(ui);
+
+    if (res->status == 200) {
+        clearAddForm(ui);
+        fetchPage(ui);
+    }
 }
 
-static void drawTreeText(const nlohmann::json& node, int depth = 0) {
+static void drawTreeTextInOrder(const nlohmann::json& node, int depth = 0) {
     if (node.is_null()) return;
 
+    drawTreeTextInOrder(node["left"], depth + 1);
+
     std::string prefix(depth * 4, ' ');
-    std::string line = prefix + node["key"].get<std::string>() +
-                       " (w:" + std::to_string(node["weight"].get<int>()) + ")";
+    std::string line = prefix +
+        node["display_value"].get<std::string>() +
+        " [id=" + std::to_string(node["sport_id"].get<int>()) + "]" +
+        " (w:" + std::to_string(node["weight"].get<int>()) + ")";
+
     ImGui::TextUnformatted(line.c_str());
 
-    drawTreeText(node["left"], depth + 1);
-    drawTreeText(node["right"], depth + 1);
+    drawTreeTextInOrder(node["right"], depth + 1);
+}
+
+static void drawRecordCard(const nlohmann::json& rec, bool showDeleteButton, UiState* ui = nullptr) {
+    ImGui::Separator();
+
+    int id = rec.value("sport_id", 0);
+    std::string name = rec.value("name", "");
+    std::string category = rec.value("category", "");
+    bool olympic = rec.value("olympic_status", false);
+    std::string description = rec.value("description", "");
+    std::string body = rec.value("governing_body", "");
+    std::string imagePath = rec.value("image_path", "");
+    std::string contraindications = rec.value("medical_contraindications", "");
+    int weight = rec.value("weight", 1);
+
+    ImGui::Text("ID: %d", id);
+    ImGui::TextWrapped("Name: %s", name.c_str());
+    ImGui::TextWrapped("Category: %s", category.c_str());
+    ImGui::Text("Olympic: %s", olympic ? "true" : "false");
+    ImGui::TextWrapped("Description: %s", description.c_str());
+    ImGui::TextWrapped("Governing body: %s", body.c_str());
+    ImGui::TextWrapped("Image path: %s", imagePath.c_str());
+    ImGui::TextWrapped("Contraindications: %s", contraindications.c_str());
+    ImGui::Text("Weight: %d", weight);
+
+    drawImagePreview(imagePath);
+
+    if (showDeleteButton && ui) {
+        std::string buttonId = "Удалить##" + std::to_string(id);
+        if (ImGui::Button(buttonId.c_str())) {
+            deleteRecord(*ui, id);
+        }
+    }
 }
 
 int main() {
     std::filesystem::create_directories("data");
     std::filesystem::create_directories("logs");
     std::filesystem::create_directories("assets/images");
+    std::filesystem::create_directories("assets/fonts");
 
     Logger logger("logs/app.log");
     Storage storage("data/sports_database.dat", "data/sports_database_backup.dat", logger);
@@ -176,21 +540,21 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
-    
+
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    
+
     ImFontConfig font_cfg;
     font_cfg.OversampleH = 2;
     font_cfg.OversampleV = 2;
     font_cfg.PixelSnapH = false;
 
     io.Fonts->AddFontFromFileTTF(
-	"assets/fonts/DejaVuSans.ttf",
-	18.0f,
-	&font_cfg,
-	io.Fonts->GetGlyphRangesCyrillic()
-);
+        "assets/fonts/DejaVuSans.ttf",
+        18.0f,
+        &font_cfg,
+        io.Fonts->GetGlyphRangesCyrillic()
+    );
 
     ImGui::StyleColorsDark();
 
@@ -219,9 +583,11 @@ int main() {
                 fetchPage(ui);
             }
         }
+
         ImGui::SameLine();
+
         if (ImGui::Button("Вперед")) {
-            int maxPage = (ui.total + ui.limit - 1) / ui.limit;
+            int maxPage = std::max(1, (ui.total + ui.limit - 1) / ui.limit);
             if (ui.page < maxPage) {
                 ui.page++;
                 fetchPage(ui);
@@ -235,13 +601,9 @@ int main() {
             doSort(ui);
         }
 
-        ImGui::InputText("Имя для поиска", ui.searchName, sizeof(ui.searchName));
+        ImGui::InputText("Имя для binary search v2", ui.searchName, sizeof(ui.searchName));
         if (ImGui::Button("Поиск (binary search v2)")) {
-            doSearch(ui);
-        }
-
-        if (ImGui::Button("Построить дерево A1")) {
-            buildTree(ui);
+            doBinarySearch(ui);
         }
 
         ImGui::Separator();
@@ -255,7 +617,16 @@ int main() {
         ImGui::Checkbox("olympic_status", &ui.olympic);
         ImGui::InputTextMultiline("description", ui.description, sizeof(ui.description), ImVec2(-1, 80));
         ImGui::InputText("governing_body", ui.governingBody, sizeof(ui.governingBody));
+
         ImGui::InputText("image_path", ui.imagePath, sizeof(ui.imagePath));
+        if (ImGui::Button("Выбрать фото")) {
+            chooseImage(ui);
+        }
+
+        if (!ui.selectedImageSourcePath.empty()) {
+            ImGui::TextWrapped("Выбран файл: %s", ui.selectedImageSourcePath.c_str());
+        }
+
         ImGui::InputTextMultiline("medical_contraindications", ui.contraindications, sizeof(ui.contraindications), ImVec2(-1, 80));
 
         if (ImGui::Button("Добавить и сохранить")) {
@@ -263,55 +634,76 @@ int main() {
         }
         ImGui::End();
 
+        ImGui::Begin("Результат binary search v2");
+        if (ui.hasBinarySearchRecord) {
+            drawRecordCard(ui.binarySearchRecord, false);
+        } else {
+            ImGui::TextUnformatted("Пока ничего не найдено.");
+        }
+        ImGui::End();
+
         ImGui::Begin("Записи");
         for (const auto& rec : ui.records) {
-            ImGui::Separator();
-            ImGui::Text("ID: %d", rec["sport_id"].get<int>());
-            ImGui::Text("Name: %s", rec["name"].get<std::string>().c_str());
-            ImGui::Text("Category: %s", rec["category"].get<std::string>().c_str());
-            ImGui::Text("Olympic: %s", rec["olympic_status"].get<bool>() ? "true" : "false");
-            ImGui::TextWrapped("Description: %s", rec["description"].get<std::string>().c_str());
-            ImGui::Text("Body: %s", rec["governing_body"].get<std::string>().c_str());
-            ImGui::Text("Image path: %s", rec["image_path"].get<std::string>().c_str());
-            ImGui::TextWrapped("Contraindications: %s", rec["medical_contraindications"].get<std::string>().c_str());
-
-            bool imgExists = std::filesystem::exists(rec["image_path"].get<std::string>());
-            ImGui::Text("Image status: %s", imgExists ? "file found" : "placeholder needed");
+            drawRecordCard(rec, true, &ui);
         }
         ImGui::End();
 
         ImGui::Begin("Дерево A1");
-        if (!ui.tree.is_null()) {
-            drawTreeText(ui.tree);
-        } else {
-            ImGui::TextUnformatted("Пока дерево не построено.");
-        }
-        ImGui::End();
 
-        ImGui::Begin("График весов");
-        if (!ui.records.empty()) {
-            static std::vector<double> xs;
-            static std::vector<double> ys;
-            xs.clear();
-            ys.clear();
+        if (ImGui::BeginTabBar("TreeTabs")) {
+            for (size_t i = 0; i < g_treeFields.size(); ++i) {
+                SortField field = g_treeFields[i];
+                const char* label = g_treeLabels[i];
+                TreeTabState& tab = ui.treeTabs[i];
 
-            for (size_t i = 0; i < ui.records.size(); ++i) {
-                xs.push_back(static_cast<double>(i));
-                ys.push_back(static_cast<double>(ui.records[i].value("weight", 1)));
+                if (ImGui::BeginTabItem(label)) {
+                    std::string buildBtn = std::string("Построить дерево##") + label;
+                    if (ImGui::Button(buildBtn.c_str())) {
+                        buildTreeForField(ui, field);
+                    }
+
+                    ImGui::InputText((std::string("Значение для поиска##") + label).c_str(),
+                                     tab.searchValue,
+                                     sizeof(tab.searchValue));
+
+                    std::string searchBtn = std::string("Поиск в дереве##") + label;
+                    if (ImGui::Button(searchBtn.c_str())) {
+                        searchInTree(ui, field);
+                    }
+
+                    ImGui::Separator();
+                    ImGui::TextWrapped("Статус вкладки: %s", tab.status.c_str());
+                    ImGui::Separator();
+
+                    if (!tab.tree.is_null()) {
+                        ImGui::TextUnformatted("Обход слева-направо:");
+                        ImGui::BeginChild((std::string("TreeView##") + label).c_str(), ImVec2(0, 250), true);
+                        drawTreeTextInOrder(tab.tree);
+                        ImGui::EndChild();
+                    } else {
+                        ImGui::TextUnformatted("Пока дерево не построено.");
+                    }
+
+                    ImGui::Separator();
+
+                    if (tab.hasFoundRecord) {
+                        ImGui::TextUnformatted("Найденная запись:");
+                        drawRecordCard(tab.foundRecord, false);
+                    }
+
+                    ImGui::EndTabItem();
+                }
             }
-
-            if (ImPlot::BeginPlot("Weights")) {
-                ImPlot::PlotBars("weight", xs.data(), ys.data(), static_cast<int>(xs.size()), 0.5);
-                ImPlot::EndPlot();
-            }
-        } else {
-            ImGui::TextUnformatted("Нет данных для графика.");
+            ImGui::EndTabBar();
         }
+
         ImGui::End();
 
         ImGui::Render();
-        int display_w, display_h;
+        int display_w = 0;
+        int display_h = 0;
         glfwGetFramebufferSize(window, &display_w, &display_h);
+
         glViewport(0, 0, display_w, display_h);
         glClearColor(0.10f, 0.10f, 0.12f, 1.00f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -319,6 +711,8 @@ int main() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
     }
+
+    destroyAllTextures();
 
     ImPlot::DestroyContext();
     ImGui_ImplOpenGL3_Shutdown();

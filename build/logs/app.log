@@ -1,3 +1,4 @@
 [2026-03-15 15:18:53] [WARNING] DB file not found. Created new empty file.
 [2026-03-15 15:18:53] [INFO] Local API server started on 127.0.0.1:8080
 [2026-03-15 15:26:15] [INFO] Local API server stopped
+[2026-03-24 21:17:09] [ERROR] JSON parse error: [json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON

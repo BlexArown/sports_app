@@ -1,0 +1,21 @@
+# ninja log v5
+0	13	1774361720614658444	stb-populate-prefix/src/stb-populate-stamp/stb-populate-mkdir	6547266e1a7125e3
+0	13	1774361720614658444	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-mkdir	6547266e1a7125e3
+14	9757	1774361730359459129	stb-populate-prefix/src/stb-populate-stamp/stb-populate-download	af1d2315fafc2883
+14	9757	1774361730359459129	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-download	af1d2315fafc2883
+9757	11972	0	stb-populate-prefix/src/stb-populate-stamp/stb-populate-update	63a5491e50ff9f39
+9757	11972	0	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-update	63a5491e50ff9f39
+11972	11985	1774361732587082484	stb-populate-prefix/src/stb-populate-stamp/stb-populate-patch	c9cf4bb19d499588
+11972	11985	1774361732587082484	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-patch	c9cf4bb19d499588
+11985	11999	1774361732599082485	stb-populate-prefix/src/stb-populate-stamp/stb-populate-configure	d106b7b12cdaf7f0
+11985	11999	1774361732599082485	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-configure	d106b7b12cdaf7f0
+11999	12012	1774361732611082486	stb-populate-prefix/src/stb-populate-stamp/stb-populate-build	a1b8617326d6f94f
+11999	12012	1774361732611082486	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-build	a1b8617326d6f94f
+12012	12027	1774361732627082488	stb-populate-prefix/src/stb-populate-stamp/stb-populate-install	78d9ce7a182ed3f0
+12012	12027	1774361732627082488	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-install	78d9ce7a182ed3f0
+12027	12041	1774361732643082489	stb-populate-prefix/src/stb-populate-stamp/stb-populate-test	c0a99a2e7f9ce773
+12027	12041	1774361732643082489	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-test	c0a99a2e7f9ce773
+12041	12061	1774361732663082490	CMakeFiles/stb-populate-complete	6f84372574224cbb
+12041	12061	1774361732663082490	stb-populate-prefix/src/stb-populate-stamp/stb-populate-done	6f84372574224cbb
+12041	12061	1774361732663082490	/home/sports_app/build/_deps/stb-subbuild/CMakeFiles/stb-populate-complete	6f84372574224cbb
+12041	12061	1774361732663082490	/home/sports_app/build/_deps/stb-subbuild/stb-populate-prefix/src/stb-populate-stamp/stb-populate-done	6f84372574224cbb
